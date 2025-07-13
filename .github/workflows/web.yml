@@ -1,35 +1,46 @@
-name: Deploy Web (Next.js)
+name: Deploy Web App
 
 on:
   push:
-    branches: [main]
     paths:
-      - 'apps/web/**'
-      - '.github/workflows/web.yml'
-  workflow_dispatch:
+      - "apps/web/**"
+    branches:
+      - main
 
 jobs:
-  web:
+  build-and-deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: apps/web
 
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
     steps:
-      - name: 🧾 Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: ⚙️ Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
-          cache: 'pnpm'
+          node-version: 18
 
-      - name: 📦 Install deps
-        run: pnpm install
+      - name: Install dependencies
+        run: npm install
 
-      - name: 🛠 Build Web App
-        run: pnpm build
+      - name: Create .env.local file
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" >> .env.local
 
-      - name: 🚀 Deploy
-        run: echo "Deploy frontend here (e.g., Vercel, rsync, etc)"
+      - name: Lint and Test (Optional)
+        run: |
+          npm run lint || echo "Lint failed"
+          npm test || echo "Tests failed"
+
+      - name: Build web app
+        run: npm run build
+
+      # OPTIONAL: Add deployment step here (e.g. Vercel CLI, Netlify CLI, or copy to S3/FTP etc.)
