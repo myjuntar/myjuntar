@@ -31,8 +31,6 @@ app.use("/api/v1/protected", protectedRoutes);
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
-  console.log("✅ Supabase URL:", process.env.SUPABASE_URL);
-  console.log("✅ Supabase Key Length:", process.env.SUPABASE_SERVICE_KEY?.length);
 
   // Optional health check
   fetch(`${process.env.SUPABASE_URL}/rest/v1/`, {

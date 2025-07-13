@@ -98,7 +98,6 @@ export const loginUser = async (req: Request, res: Response) => {
     });
 
     const { email, password } = schema.parse(req.body);
-    console.log("➡️ Login attempt for:", email);
 
     const { data: user, error } = await supabase
       .from("users")
@@ -116,17 +115,8 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid credentials." });
     }
 
-    console.log("✅ User found:", {
-      email: user.email,
-      role: user.role,
-      is_verified: user.is_verified,
-    });
-
-    console.log("🔐 Stored Hash:", user.password_hash);
-    console.log("🔑 Entered Password:", password);
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.log("🧪 Password Match:", isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid credentials." });
@@ -137,8 +127,6 @@ export const loginUser = async (req: Request, res: Response) => {
       email: user.email,
       role: user.role,
     });
-
-    console.log("🎉 Login successful for:", email);
 
     return res.status(200).json({
       message: "Login successful",
