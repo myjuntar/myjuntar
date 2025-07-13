@@ -19,7 +19,7 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
     steps:
       - name: 🧾 Checkout repository
@@ -39,7 +39,7 @@ jobs:
           echo "JWT_SECRET=${JWT_SECRET}" >> .env
           echo "SMTP_PASSWORD=${SMTP_PASSWORD}" >> .env
           echo "SUPABASE_URL=${SUPABASE_URL}" >> .env
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" >> .env
+          echo "SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}" >> .env
 
       - name: 🧹 Lint and Test
         run: |
