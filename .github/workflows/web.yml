@@ -1,0 +1,35 @@
+name: Deploy Web (Next.js)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: 🧾 Checkout Code
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install deps
+        run: pnpm install
+
+      - name: 🛠 Build Web App
+        run: pnpm build
+
+      - name: 🚀 Deploy
+        run: echo "Deploy frontend here (e.g., Vercel, rsync, etc)"
