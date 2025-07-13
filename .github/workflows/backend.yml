@@ -1,46 +1,54 @@
-name: Backend CI
+name: Deploy Backend
 
 on:
   push:
     paths:
-      - 'apps/backend/**'
-    branches: [main]
-  pull_request:
-    paths:
-      - 'apps/backend/**'
-    branches: [main]
+      - "apps/backend/**"
+    branches:
+      - main
 
 jobs:
-  build-and-test:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
     defaults:
       run:
         working-directory: apps/backend
 
     env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PORT: 3001
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: 🟢 Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: 18
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: ✅ Lint
-        run: npm run lint || echo "Lint failed (optional)"
+      - name: Create .env file
+        run: |
+          echo "PORT=${PORT}" >> .env
+          echo "JWT_SECRET=${JWT_SECRET}" >> .env
+          echo "SMTP_PASSWORD=${SMTP_PASSWORD}" >> .env
+          echo "SUPABASE_URL=${SUPABASE_URL}" >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" >> .env
 
-      - name: 🧪 Run tests
-        run: npm run test || echo "Tests failed (optional)"
+      - name: Lint and Test (Optional)
+        run: |
+          npm run lint || echo "Linting failed"
+          npm test || echo "Tests failed"
 
-      - name: ✅ Backend ready
-        run: echo "Backend build complete"
+      - name: Build app (if applicable)
+        run: |
+          if [ -f package.json ] && grep -q '"build"' package.json; then npm run build; fi
+
+      - name: Start backend (for self-hosted / preview purposes)
+        run: npm start
