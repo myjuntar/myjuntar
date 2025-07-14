@@ -5,4 +5,4 @@ dist/
 apps/**/node_modules/
 apps/**/.env
 *.log
-.DS_Store
+**/.DS_Store
