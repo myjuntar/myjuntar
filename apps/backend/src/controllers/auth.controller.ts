@@ -89,11 +89,12 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Identifier is required for OTP validation." });
     }
     const valid = await validateOtp(identifier, otp, "signup");
+
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
-    await markOtpAsVerified(identifier, "signup");
 
+    await markOtpAsVerified(identifier, otp, "signup");
 
     const payload = await redis.get(redisKey);
     if (!payload) {
@@ -267,7 +268,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
-    await markOtpAsVerified(email, "reset");
+    await markOtpAsVerified(email, otp, "reset");
 
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -390,7 +391,7 @@ export const loginOtpVerify = async (req: Request, res: Response) => {
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
-    await markOtpAsVerified(phone, "login");
+    await markOtpAsVerified(phone, otp, "login");
 
 
     const { data: user, error } = await supabase

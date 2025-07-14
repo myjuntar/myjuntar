@@ -1,17 +1,17 @@
 import { supabase } from '../utils/supabaseClient';
 
-export type OtpPurpose = 'signup' | 'reset' | 'login';
-
 export const generateOtp = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
+
+export type OtpPurpose = 'signup' | 'reset' | 'login';
 
 export const storeOtp = async (
   identifier: string,
   otp: string,
   purpose: OtpPurpose,
   expiresAt: Date
-): Promise<void> => {
+) => {
   await supabase
     .from('email_otps')
     .delete()
@@ -22,7 +22,7 @@ export const storeOtp = async (
     email: identifier,
     otp,
     purpose,
-    expires_at: expiresAt
+    expires_at: expiresAt,
   });
 
   if (error) throw new Error('Failed to store OTP');
@@ -48,13 +48,13 @@ export const validateOtp = async (
 
 export const markOtpAsVerified = async (
   identifier: string,
+  otp: string,
   purpose: OtpPurpose
-): Promise<void> => {
-  const { error } = await supabase
+) => {
+  await supabase
     .from('email_otps')
     .update({ verified: true })
     .eq('email', identifier)
+    .eq('otp', otp)
     .eq('purpose', purpose);
-
-  if (error) throw new Error('Failed to mark OTP as verified');
 };
