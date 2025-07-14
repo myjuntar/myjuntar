@@ -1,42 +1,40 @@
-// apps/backend/src/routes/health.routes.ts
-import { Router } from "express";
+// src/routes/health.routes.ts
+import express from "express";
 import { redis } from "../utils/redisClient";
 import { supabase } from "../utils/supabaseClient";
 import nodemailer from "nodemailer";
 import os from "os";
+import { sendAlertEmail } from "../utils/sendAlertEmail";
 
-const router = Router();
+const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const result = {
-    status: "ok",
-    redis: "pending",
-    supabase: "pending",
-    smtp: "pending",
+  const health = {
+    redis: false,
+    supabase: false,
+    smtp: false,
     uptime: process.uptime(),
-    memory: process.memoryUsage(),
+    memoryUsage: process.memoryUsage().rss,
     hostname: os.hostname(),
-    error: {} as Record<string, any>,
   };
 
   // Redis
   try {
     await redis.set("ping", "pong");
     const value = await redis.get("ping");
-    result.redis = value === "pong" ? "connected" : "unexpected value";
+    if (value === "pong") health.redis = true;
+    else throw new Error("Redis mismatch");
   } catch (err: any) {
-    result.redis = "disconnected";
-    result.error.redis = err.message;
+    await sendAlertEmail("❌ Redis Health Check Failed", err.message);
   }
 
   // Supabase
   try {
     const { error } = await supabase.from("users").select("id").limit(1);
-    if (error) throw error;
-    result.supabase = "connected";
+    if (!error) health.supabase = true;
+    else throw error;
   } catch (err: any) {
-    result.supabase = "disconnected";
-    result.error.supabase = err.message;
+    await sendAlertEmail("❌ Supabase Health Check Failed", err.message);
   }
 
   // SMTP
@@ -50,16 +48,17 @@ router.get("/", async (req, res) => {
         pass: process.env.SMTP_PASS,
       },
     });
-
     await transporter.verify();
-    result.smtp = "connected";
+    health.smtp = true;
   } catch (err: any) {
-    result.smtp = "disconnected";
-    result.error.smtp = err.message;
+    await sendAlertEmail("❌ SMTP Health Check Failed", err.message);
   }
 
-  const isHealthy = result.redis === "connected" && result.supabase === "connected" && result.smtp === "connected";
-  return res.status(isHealthy ? 200 : 500).json(result);
+  res.status(200).json({
+    status: health.redis && health.supabase && health.smtp ? "ok" : "degraded",
+    services: health,
+    timestamp: new Date(),
+  });
 });
 
 export default router;
