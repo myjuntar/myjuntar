@@ -9,6 +9,7 @@ import { OAuth2Client } from "google-auth-library";
 import redis from "../utils/redisClient";
 import { enforceOtpRateLimit } from "../utils/otpRateLimiter";
 import { sendOtpSms } from "../utils/smsSender";
+import { getClientIp } from "../utils/getClientIp";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -37,7 +38,15 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Email already registered. Please login." });
     }
 
-    await enforceOtpRateLimit(email, req.ip);
+    try {
+      const ip = getClientIp(req);
+      await enforceOtpRateLimit(email, ip);
+    } catch (err: any) {
+      return res.status(429).json({
+        error: err.message,
+        ...(err.retryAfter && { retryAfter: err.retryAfter }),
+      });
+    }
 
     const otp = generateOtp();
     const userPayload = JSON.stringify({ email, password, phone_number, full_name });
@@ -128,7 +137,15 @@ export const forgotPasswordRequest = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Email not registered." });
     }
 
-    await enforceOtpRateLimit(email, req.ip);
+    try {
+      const ip = getClientIp(req);
+      await enforceOtpRateLimit(email, ip);
+    } catch (err: any) {
+      return res.status(429).json({
+        error: err.message,
+        ...(err.retryAfter && { retryAfter: err.retryAfter }),
+      });
+    }
 
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -336,8 +353,15 @@ export const loginOtpRequest = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ error: "Phone number not registered." });
     }
-
-    await enforceOtpRateLimit(phone, req.ip);
+    try {
+      const ip = getClientIp(req);
+      await enforceOtpRateLimit(phone, ip);
+    } catch (err: any) {
+      return res.status(429).json({
+        error: err.message,
+        ...(err.retryAfter && { retryAfter: err.retryAfter }),
+      });
+    }
 
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);

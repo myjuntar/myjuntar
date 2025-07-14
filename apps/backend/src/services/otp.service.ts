@@ -31,7 +31,7 @@ export const storeOtp = async (
 export const validateOtp = async (
   emailOrPhone: string,
   otp: string,
-  purpose: 'signup' | 'reset' | 'login'  // <-- add 'login'
+  purpose: OtpPurpose
 ): Promise<boolean> => {
   const { data, error } = await supabase
     .from('email_otps')

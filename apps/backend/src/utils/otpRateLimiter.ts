@@ -1,42 +1,46 @@
-// utils/otpRateLimiter.ts
-import redis from "./redisClient";
+import redis from './redisClient';
 
-export async function enforceOtpRateLimit(identifier: string, ip?: string): Promise<void> {
+const COOLDOWN_SECONDS = 60;
+const MAX_DAILY_LIMIT = 3;
+
+export const enforceOtpRateLimit = async (identifier: string, ip: string): Promise<void> => {
+  const keyBase = `otp:limit:${identifier}`;
+  const ipKey = `otp:ip:${ip}`;
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute
-  const maxPerDay = 3;
 
-  const countKey = `otp:count:${identifier}`;
-  const timeKey = `otp:last:${identifier}`;
-  const ipKey = ip ? `otp:ip:${ip}` : null;
-
-  // Check last timestamp
-  const lastSent = await redis.get(timeKey);
+  // Per-user cooldown check
+  const lastSent = await redis.get(`${keyBase}:last_sent`);
   if (lastSent) {
-    const secondsAgo = Math.floor((now - parseInt(lastSent)) / 1000);
-    if (secondsAgo < 60) {
-      const retryAfter = 60 - secondsAgo;
-      throw new Error(`OTP already sent. Please retry after ${retryAfter} seconds.`);
+    const diff = Math.floor((now - parseInt(lastSent)) / 1000);
+    if (diff < COOLDOWN_SECONDS) {
+      throw {
+        message: 'OTP already sent. Please wait.',
+        retryAfter: COOLDOWN_SECONDS - diff,
+      };
     }
   }
 
-  // Count for the day (24hr window)
-  const dayCount = await redis.get(countKey);
-  if (dayCount && parseInt(dayCount) >= maxPerDay) {
-    throw new Error("You have exceeded the OTP request limit for today. Please try again tomorrow.");
+  // Per-user daily limit
+  const countKey = `${keyBase}:count`;
+  const count = parseInt((await redis.get(countKey)) || '0');
+  if (count >= MAX_DAILY_LIMIT) {
+    throw {
+      message: 'You have exceeded the OTP request limit for today.',
+    };
   }
 
-  // IP level throttle (5 per 10 minutes)
-  if (ipKey) {
-    const ipCount = await redis.incr(ipKey);
-    if (ipCount === 1) await redis.expire(ipKey, 600);
-    if (ipCount > 5) {
-      throw new Error("Too many OTP requests from your IP. Please wait and try again later.");
-    }
+  // Per-IP basic rate limit
+  const ipCount = parseInt((await redis.get(ipKey)) || '0');
+  if (ipCount >= 20) {
+    throw { message: 'Too many requests from this IP. Try later.' };
   }
 
-  // Set current timestamp and increment count
-  await redis.set(timeKey, now.toString(), "EX", 600);
+  // Set/update counters
+  await redis.set(`${keyBase}:last_sent`, now.toString(), { EX: COOLDOWN_SECONDS });
+
   await redis.incr(countKey);
-  await redis.expire(countKey, 86400);
-}
+  await redis.expire(countKey, 24 * 3600);
+
+  await redis.incr(ipKey);
+  await redis.expire(ipKey, 3600);
+};
