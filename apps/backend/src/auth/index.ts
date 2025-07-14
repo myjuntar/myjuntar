@@ -4,7 +4,7 @@ import protectedRoutes from './routes/protected.routes';
 
 const router = express.Router();
 
-router.use('/auth', authRoutes);
+router.use(authRoutes);
 router.use('/protected', protectedRoutes);
 
 export default router;
