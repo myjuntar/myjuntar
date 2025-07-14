@@ -4,13 +4,14 @@ export const generateOtp = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+export type OtpPurpose = 'signup' | 'reset' | 'login';
+
 export const storeOtp = async (
   email: string,
   otp: string,
-  purpose: 'signup' | 'reset',
+  purpose: OtpPurpose,
   expiresAt: Date
 ) => {
-  // Invalidate previous OTPs for the same purpose
   await supabase
     .from('email_otps')
     .delete()
@@ -28,14 +29,14 @@ export const storeOtp = async (
 };
 
 export const validateOtp = async (
-  email: string,
+  emailOrPhone: string,
   otp: string,
-  purpose: 'signup' | 'reset'
+  purpose: 'signup' | 'reset' | 'login'  // <-- add 'login'
 ): Promise<boolean> => {
   const { data, error } = await supabase
     .from('email_otps')
     .select('*')
-    .eq('email', email)
+    .eq('email', emailOrPhone)
     .eq('otp', otp)
     .eq('purpose', purpose)
     .eq('verified', false)

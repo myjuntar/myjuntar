@@ -6,7 +6,9 @@ import { generateOtp, storeOtp, validateOtp } from "../services/otp.service";
 import { sendOtpEmail } from "../services/emailSender";
 import { generateToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
-import { checkOtpRateLimit } from "../utils/checkOtpRateLimit";
+import redis from "../utils/redisClient";
+import { enforceOtpRateLimit } from "../utils/otpRateLimiter";
+import { sendOtpSms } from "../utils/smsSender";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -14,18 +16,45 @@ const emailSchema = z.object({
   email: z.string().email(),
 });
 
+const signupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  phone_number: z.string().optional(),
+  full_name: z.string().optional(),
+});
+
 export const signupRequestOTP = async (req: Request, res: Response) => {
   try {
-    const { email } = emailSchema.parse(req.body);
-    await checkOtpRateLimit(email, "signup");
+    const { email, password, phone_number, full_name } = signupSchema.parse(req.body);
+
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already registered. Please login." });
+    }
+
+    await enforceOtpRateLimit(email, req.ip);
 
     const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const userPayload = JSON.stringify({ email, password, phone_number, full_name });
 
-    await storeOtp(email, otp, "signup", expiresAt);
+    await redis.set(`otp:${email}`, userPayload, { EX: 600 });
+    if (phone_number) {
+      await redis.set(`otp:phone:${phone_number}`, userPayload, { EX: 600 });
+    }
+
+    await storeOtp(email, otp, "signup", new Date(Date.now() + 10 * 60 * 1000));
     await sendOtpEmail(email, otp);
 
-    return res.status(200).json({ message: "OTP sent to email." });
+    if (phone_number) {
+      await sendOtpSms(phone_number, otp);
+    }
+
+    return res.status(200).json({ message: "OTP sent to email and phone (if provided)." });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
@@ -34,28 +63,84 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
 export const verifyOTP = async (req: Request, res: Response) => {
   try {
     const schema = z.object({
-      email: z.string().email(),
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
       otp: z.string().length(6),
     });
 
-    const { email, otp } = schema.parse(req.body);
-    const valid = await validateOtp(email, otp, "signup");
+    const { email, phone, otp } = schema.parse(req.body);
+
+    if (!email && !phone) {
+      return res.status(400).json({ error: "Either email or phone is required." });
+    }
+
+    const redisKey = email ? `otp:${email}` : `otp:phone:${phone}`;
+    const identifier = email ?? phone;
+    if (!identifier) {
+      return res.status(400).json({ error: "Identifier is required for OTP validation." });
+    }
+    const valid = await validateOtp(identifier, otp, "signup");
+
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
 
-    await supabase
-      .from("email_otps")
-      .update({ verified: true })
-      .eq("email", email)
-      .eq("otp", otp)
-      .eq("purpose", "signup");
+    const payload = await redis.get(redisKey);
+    if (!payload) {
+      return res.status(400).json({ error: "Session expired. Please start signup again." });
+    }
 
-    return res.status(200).json({ message: "OTP verified." });
+    const { password, phone_number, full_name } = JSON.parse(payload);
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const { error } = await supabase.from("users").insert({
+      email: email || undefined,
+      password_hash,
+      phone_number: phone || phone_number,
+      full_name,
+      is_verified: true,
+      role: "regular",
+    });
+
+    if (error) {
+      return res.status(500).json({ error: "User creation failed", detail: error.message });
+    }
+
+    await redis.del(redisKey);
+
+    return res.status(201).json({ message: "Signup complete. You can now login." });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
 };
+
+export const forgotPasswordRequest = async (req: Request, res: Response) => {
+  try {
+    const { email } = emailSchema.parse(req.body);
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (!user) {
+      return res.status(404).json({ error: "Email not registered." });
+    }
+
+    await enforceOtpRateLimit(email, req.ip);
+
+    const otp = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await storeOtp(email, otp, "reset", expiresAt);
+    await sendOtpEmail(email, otp);
+
+    return res.status(200).json({ message: "OTP sent for password reset." });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+};
+
 
 export const setPassword = async (req: Request, res: Response) => {
   try {
@@ -101,17 +186,22 @@ export const setPassword = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const schema = z.object({
-      email: z.string().email(),
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
       password: z.string(),
     });
 
-    const { email, password } = schema.parse(req.body);
+    const { email, phone, password } = schema.parse(req.body);
+
+    if (!email && !phone) {
+      return res.status(400).json({ error: "Email or phone is required." });
+    }
 
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
-      .eq("email", email)
-      .single();
+      .eq(email ? "email" : "phone_number", email || phone)
+      .maybeSingle();
 
     if (error) {
       console.error("❌ Supabase error:", error.message);
@@ -119,7 +209,6 @@ export const loginUser = async (req: Request, res: Response) => {
     }
 
     if (!user) {
-      console.warn("⚠️ No user found for email:", email);
       return res.status(400).json({ error: "Invalid credentials." });
     }
 
@@ -141,35 +230,10 @@ export const loginUser = async (req: Request, res: Response) => {
       role: user.role,
     });
   } catch (error: any) {
-    console.error("🚨 Unexpected login error:", error.message);
     return res.status(400).json({ error: error.message });
   }
 };
 
-export const forgotPasswordRequest = async (req: Request, res: Response) => {
-  try {
-    const { email } = emailSchema.parse(req.body);
-
-    const { data: user } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .single();
-
-    if (!user) {
-      return res.status(404).json({ error: "Email not registered." });
-    }
-
-    const otp = generateOtp();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await storeOtp(email, otp, "reset", expiresAt);
-    await sendOtpEmail(email, otp);
-
-    return res.status(200).json({ message: "OTP sent for password reset." });
-  } catch (error: any) {
-    return res.status(400).json({ error: error.message });
-  }
-};
 
 export const resetPassword = async (req: Request, res: Response) => {
   try {
@@ -255,3 +319,74 @@ export const socialLogin = async (
       .json({ error: "Invalid Google login", detail: err.message });
   }
 };
+
+export const loginOtpRequest = async (req: Request, res: Response) => {
+  try {
+    const schema = z.object({
+      phone: z.string().min(10),
+    });
+    const { phone } = schema.parse(req.body);
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("phone_number", phone)
+      .maybeSingle();
+
+    if (!user) {
+      return res.status(404).json({ error: "Phone number not registered." });
+    }
+
+    await enforceOtpRateLimit(phone, req.ip);
+
+    const otp = generateOtp();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await storeOtp(phone, otp, "login", expiresAt);
+    await sendOtpSms(phone, otp);
+
+    return res.status(200).json({ message: "OTP sent to phone." });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+export const loginOtpVerify = async (req: Request, res: Response) => {
+  try {
+    const schema = z.object({
+      phone: z.string().min(10),
+      otp: z.string().length(6),
+    });
+    const { phone, otp } = schema.parse(req.body);
+
+    const valid = await validateOtp(phone, otp, "login");
+    if (!valid) {
+      return res.status(400).json({ error: "Invalid or expired OTP." });
+    }
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("phone_number", phone)
+      .maybeSingle();
+
+    if (error || !user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      role: user.role,
+    });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+};
+
