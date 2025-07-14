@@ -15,8 +15,13 @@ export default function ForgotPasswordPage() {
       await forgotPassword(email)
       toast.success('OTP sent to your email')
       window.location.href = `/reset-password?email=${email}`
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to send OTP')
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } }
+        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+      } else {
+        toast.error('Unknown error occurred')
+      }
     } finally {
       setLoading(false)
     }

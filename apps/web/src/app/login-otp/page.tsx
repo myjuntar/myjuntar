@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import { loginOtpRequest } from '@/lib/api'
@@ -17,8 +18,13 @@ export default function LoginOtpRequestPage() {
       await loginOtpRequest(email)
       toast.success('OTP sent to your email')
       router.push(`/login-otp/verify?email=${email}`)
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to send OTP')
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } }
+        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+      } else {
+        toast.error('Unknown error occurred')
+      }
     } finally {
       setLoading(false)
     }

@@ -19,8 +19,13 @@ export default function SignupPage() {
       await signupRequest({ email, full_name: fullName })
       toast.success('OTP sent to your email')
       router.push(`/verify?email=${email}`)
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Signup failed')
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } }
+        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+      } else {
+        toast.error('Unknown error occurred')
+      }
     } finally {
       setLoading(false)
     }

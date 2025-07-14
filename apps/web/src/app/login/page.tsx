@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { login } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth'
-import { GoogleLogin } from '@react-oauth/google'
+import { CredentialResponse, GoogleLogin } from '@react-oauth/google'
 import { socialLogin } from '@/lib/api'
 
 export default function LoginPage() {
@@ -26,33 +26,47 @@ export default function LoginPage() {
       const { token, user } = res.data
       setToken(token)
       setUser(user)
-      remember
-        ? localStorage.setItem('token', token)
-        : sessionStorage.setItem('token', token)
+      if (remember) {
+        localStorage.setItem('token', token)
+      } else {
+        sessionStorage.setItem('token', token)
+      }
       toast.success('Login successful')
       router.push(user.role === 'super_admin' ? '/dashboard' : '/account')
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Login failed')
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } }
+        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+      } else {
+        toast.error('Unknown error occurred')
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const handleGoogleLogin = async (credentialResponse: any) => {
-    const idToken = credentialResponse.credential
-    if (!idToken) return toast.error('Login failed')
-    try {
-      const res = await socialLogin(idToken)
-      const { token, user } = res.data
-      setToken(token)
-      setUser(user)
-      localStorage.setItem('token', token)
-      toast.success('Google login successful')
-      router.push(user.role === 'super_admin' ? '/dashboard' : '/account')
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Login failed')
+const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+  const idToken = credentialResponse.credential
+  if (!idToken) return toast.error('Login failed')
+
+  try {
+    const res = await socialLogin(idToken)
+    const { token, user } = res.data
+    setToken(token)
+    setUser(user)
+    localStorage.setItem('token', token)
+    toast.success('Google login successful')
+    router.push(user.role === 'super_admin' ? '/dashboard' : '/account')
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const axiosErr = err as { response?: { data?: { message?: string } } }
+      toast.error(axiosErr.response?.data?.message || 'Login failed')
+    } else {
+      toast.error('Unexpected error')
     }
   }
+}
+
 
   return (
     <div className="max-w-md mx-auto p-6 mt-10 border rounded shadow-sm bg-white">
