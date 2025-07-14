@@ -6,7 +6,7 @@ import { generateOtp, markOtpAsVerified, storeOtp, validateOtp } from "../servic
 import { sendOtpEmail } from "../services/emailSender";
 import { generateToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
-import redis from "../utils/redisClient";
+import { redis } from "../utils/redisClient";
 import { enforceOtpRateLimit } from "../utils/otpRateLimiter";
 import { sendOtpSms } from "../utils/smsSender";
 import { getClientIp } from "../utils/getClientIp";
@@ -51,9 +51,9 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
     const otp = generateOtp();
     const userPayload = JSON.stringify({ email, password, phone_number, full_name });
 
-    await redis.set(`otp:${email}`, userPayload, { EX: 600 });
+    await redis.set(`otp:${email}`, userPayload, { ex: 600 });
     if (phone_number) {
-      await redis.set(`otp:phone:${phone_number}`, userPayload, { EX: 600 });
+      await redis.set(`otp:phone:${phone_number}`, userPayload, { ex: 600 });
     }
 
     await storeOtp(email, otp, "signup", new Date(Date.now() + 10 * 60 * 1000));
@@ -100,7 +100,9 @@ export const verifyOTP = async (req: Request, res: Response) => {
     if (!payload) {
       return res.status(400).json({ error: "Session expired. Please start signup again." });
     }
-
+    if (typeof payload !== "string") {
+      return res.status(400).json({ error: "Invalid session payload." });
+    }
     const { password, phone_number, full_name } = JSON.parse(payload);
     const password_hash = await bcrypt.hash(password, 10);
 
