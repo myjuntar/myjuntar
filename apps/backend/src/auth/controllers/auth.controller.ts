@@ -28,16 +28,31 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
   try {
     const { email, password, phone_number, full_name } = signupSchema.parse(req.body);
 
-    const { data: existingUser } = await supabase
+    // Check if email is already registered
+    const { data: existingUserByEmail } = await supabase
       .from("users")
       .select("id")
       .eq("email", email)
       .maybeSingle();
 
-    if (existingUser) {
+    if (existingUserByEmail) {
       return res.status(400).json({ error: "Email already registered. Please login." });
     }
 
+    // Check if phone number is already registered
+    if (phone_number) {
+      const { data: existingUserByPhone } = await supabase
+        .from("users")
+        .select("id")
+        .eq("phone_number", phone_number)
+        .maybeSingle();
+
+      if (existingUserByPhone) {
+        return res.status(400).json({ error: "Phone number already in use." });
+      }
+    }
+
+    // Enforce rate limit
     try {
       const ip = getClientIp(req);
       await enforceOtpRateLimit(email, ip);
@@ -48,14 +63,17 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
       });
     }
 
+    // Generate OTP and store session payload
     const otp = generateOtp();
     const userPayload = JSON.stringify({ email, password, phone_number, full_name });
 
-    await redis.set(`otp:${email}`, userPayload, { ex: 600 });
+    await redis.set(`otp:${email}`, JSON.stringify(userPayload), { ex: 600 });
+
     if (phone_number) {
-      await redis.set(`otp:phone:${phone_number}`, userPayload, { ex: 600 });
+      await redis.set(`otp:phone:${phone_number}`, JSON.stringify(userPayload), { ex: 600 });
     }
 
+    // Store OTP and send via email and/or SMS
     await storeOtp(email, otp, "signup", new Date(Date.now() + 10 * 60 * 1000));
     await sendOtpEmail(email, otp);
 
@@ -64,6 +82,7 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
     }
 
     return res.status(200).json({ message: "OTP sent to email and phone (if provided)." });
+
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
@@ -71,6 +90,8 @@ export const signupRequestOTP = async (req: Request, res: Response) => {
 
 export const verifyOTP = async (req: Request, res: Response) => {
   try {
+
+    // Validate request body
     const schema = z.object({
       email: z.string().email().optional(),
       phone: z.string().optional(),
@@ -83,31 +104,49 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Either email or phone is required." });
     }
 
-    const redisKey = email ? `otp:${email}` : `otp:phone:${phone}`;
-    const identifier = email ?? phone;
-    if (!identifier) {
-      return res.status(400).json({ error: "Identifier is required for OTP validation." });
-    }
-    const valid = await validateOtp(identifier, otp, "signup");
+    // Now we can safely assign
+    const identifier: string | undefined = email || phone;
 
+    // You can also add a runtime check (for extra safety)
+    if (!identifier) {
+      return res.status(500).json({ error: "Unexpected missing identifier after validation" });
+    }
+
+    const redisKey = email ? `otp:${email}` : `otp:phone:${phone}`;
+
+    // Validate OTP
+    const valid = await validateOtp(identifier, otp, "signup");
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
 
+    // Mark OTP as verified
     await markOtpAsVerified(identifier, otp, "signup");
 
-    const payload = await redis.get(redisKey);
+    // Fetch session payload from Redis
+    const payload = await redis.get(redisKey) as string | null;
+
     if (!payload) {
-      return res.status(400).json({ error: "Session expired. Please start signup again." });
+      return res.status(400).json({ error: "Session expired. Please re-initiate signup." });
     }
 
-    if (typeof payload !== "string") {
-      return res.status(400).json({ error: "Invalid session payload." });
+    let parsedPayload;
+    try {
+      parsedPayload = JSON.parse(payload);
+    } catch (err) {
+      return res.status(400).json({ error: "Invalid session payload format." });
     }
 
-    const { password, phone_number, full_name } = JSON.parse(payload);
+    // Extract fields from session payload
+    const { password, phone_number, full_name } = parsedPayload;
+    if (!password || !full_name) {
+      return res.status(400).json({ error: "Incomplete session data." });
+    }
+
+    // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
+    // Insert user into Supabase
     const { error } = await supabase.from("users").insert({
       email: email || undefined,
       password_hash,
@@ -121,9 +160,11 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return res.status(500).json({ error: "User creation failed", detail: error.message });
     }
 
+    // Clean up session
     await redis.del(redisKey);
 
     return res.status(201).json({ message: "Signup complete. You can now login." });
+
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
@@ -227,7 +268,6 @@ export const loginUser = async (req: Request, res: Response) => {
       .maybeSingle();
 
     if (error) {
-      console.error("❌ Supabase error:", error.message);
       return res.status(500).json({ error: "Internal error fetching user." });
     }
 
