@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { supabase } from "../utils/supabaseClient";
-import { generateOtp, storeOtp, validateOtp } from "../services/otp.service";
+import { generateOtp, markOtpAsVerified, storeOtp, validateOtp } from "../services/otp.service";
 import { sendOtpEmail } from "../services/emailSender";
 import { generateToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
@@ -89,10 +89,11 @@ export const verifyOTP = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Identifier is required for OTP validation." });
     }
     const valid = await validateOtp(identifier, otp, "signup");
-
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
+    await markOtpAsVerified(identifier, "signup");
+
 
     const payload = await redis.get(redisKey);
     if (!payload) {
@@ -266,6 +267,8 @@ export const resetPassword = async (req: Request, res: Response) => {
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
+    await markOtpAsVerified(email, "reset");
+
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -387,6 +390,8 @@ export const loginOtpVerify = async (req: Request, res: Response) => {
     if (!valid) {
       return res.status(400).json({ error: "Invalid or expired OTP." });
     }
+    await markOtpAsVerified(phone, "login");
+
 
     const { data: user, error } = await supabase
       .from("users")
