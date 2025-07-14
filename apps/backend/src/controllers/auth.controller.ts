@@ -6,6 +6,7 @@ import { generateOtp, storeOtp, validateOtp } from "../services/otp.service";
 import { sendOtpEmail } from "../services/emailSender";
 import { generateToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
+import { checkOtpRateLimit } from "../utils/checkOtpRateLimit";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -16,6 +17,8 @@ const emailSchema = z.object({
 export const signupRequestOTP = async (req: Request, res: Response) => {
   try {
     const { email } = emailSchema.parse(req.body);
+    await checkOtpRateLimit(email, "signup");
+
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -59,9 +62,10 @@ export const setPassword = async (req: Request, res: Response) => {
     const schema = z.object({
       email: z.string().email(),
       password: z.string().min(6),
+      phone_number: z.string().optional()
     });
 
-    const { email, password } = schema.parse(req.body);
+    const { email, password, phone_number } = schema.parse(req.body);
 
     const otpRecord = await supabase
       .from("email_otps")
@@ -83,6 +87,7 @@ export const setPassword = async (req: Request, res: Response) => {
         password_hash: passwordHash,
         is_verified: true,
         role: "regular",
+        phone_number
       },
       { onConflict: "email" }
     );
