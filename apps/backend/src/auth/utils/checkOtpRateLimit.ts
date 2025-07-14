@@ -1,4 +1,4 @@
-import { supabase } from "./supabaseClient";
+import { supabase } from '../../config/supabaseClient';
 
 export async function checkOtpRateLimit(email: string, purpose: string): Promise<void> {
   // Step 1: Block if user already exists (only for signup)

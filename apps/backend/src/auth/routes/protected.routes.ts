@@ -1,9 +1,6 @@
 import express from "express";
-import {
-  authenticate,
-  requireRole,
-  AuthenticatedRequest,
-} from "../middleware/authMiddleware";
+import { authenticate, AuthenticatedRequest, requireRole } from "../../common/middleware/authMiddleware";
+
 
 const router = express.Router();
 

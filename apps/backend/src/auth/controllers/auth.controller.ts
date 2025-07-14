@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { supabase } from "../utils/supabaseClient";
+import { supabase } from '../../config/supabaseClient';
 import { generateOtp, markOtpAsVerified, storeOtp, validateOtp } from "../services/otp.service";
 import { sendOtpEmail } from "../services/emailSender";
-import { generateToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
-import { redis } from "../utils/redisClient";
 import { enforceOtpRateLimit } from "../utils/otpRateLimiter";
 import { sendOtpSms } from "../utils/smsSender";
 import { getClientIp } from "../utils/getClientIp";
+import { generateToken } from "../../common/utils/jwt";
+import { redis } from "../../config/redisClient";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -100,9 +100,11 @@ export const verifyOTP = async (req: Request, res: Response) => {
     if (!payload) {
       return res.status(400).json({ error: "Session expired. Please start signup again." });
     }
+
     if (typeof payload !== "string") {
       return res.status(400).json({ error: "Invalid session payload." });
     }
+
     const { password, phone_number, full_name } = JSON.parse(payload);
     const password_hash = await bcrypt.hash(password, 10);
 

@@ -1,4 +1,5 @@
-import { redis } from './redisClient';
+import { redis } from "../../config/redisClient";
+
 
 const COOLDOWN_SECONDS = 60;
 const MAX_DAILY_LIMIT = 3;

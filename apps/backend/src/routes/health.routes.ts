@@ -1,10 +1,10 @@
 // src/routes/health.routes.ts
 import express from "express";
-import { redis } from "../utils/redisClient";
-import { supabase } from "../utils/supabaseClient";
 import nodemailer from "nodemailer";
 import os from "os";
-import { sendAlertEmail } from "../utils/sendAlertEmail";
+import { redis } from "../config/redisClient";
+import { supabase } from "../config/supabaseClient";
+import { sendAlertEmail } from "../common/utils/sendAlertEmail";
 
 const router = express.Router();
 
