@@ -23,7 +23,15 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await login(email, password)
-      const { token, user } = res.data
+      const { token, role } = res.data
+
+      const user = {
+        email,
+        role,
+        id: '',        // optional — decode from JWT if needed
+        full_name: '', // optional
+      }
+
       setToken(token)
       setUser(user)
       if (remember) {
@@ -31,41 +39,50 @@ export default function LoginPage() {
       } else {
         sessionStorage.setItem('token', token)
       }
+
       toast.success('Login successful')
-      router.push(user.role === 'super_admin' ? '/dashboard' : '/account')
+      router.push(role === 'super_admin' ? '/dashboard' : '/account')
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as { response?: { data?: { message?: string } } }
-        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+        toast.error(axiosError.response?.data?.message || 'Login failed')
       } else {
-        toast.error('Unknown error occurred')
+        toast.error('Unexpected error')
       }
     } finally {
       setLoading(false)
     }
   }
 
-const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
-  const idToken = credentialResponse.credential
-  if (!idToken) return toast.error('Login failed')
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    const idToken = credentialResponse.credential
+    if (!idToken) return toast.error('Login failed')
 
-  try {
-    const res = await socialLogin(idToken)
-    const { token, user } = res.data
-    setToken(token)
-    setUser(user)
-    localStorage.setItem('token', token)
-    toast.success('Google login successful')
-    router.push(user.role === 'super_admin' ? '/dashboard' : '/account')
-  } catch (err: unknown) {
-    if (err && typeof err === 'object' && 'response' in err) {
-      const axiosErr = err as { response?: { data?: { message?: string } } }
-      toast.error(axiosErr.response?.data?.message || 'Login failed')
-    } else {
-      toast.error('Unexpected error')
+    try {
+      const res = await socialLogin(idToken)
+      const { token, role } = res.data
+
+      const user = {
+        email: '',     // you can decode from token if needed
+        role,
+        id: '',
+        full_name: '',
+      }
+
+      setToken(token)
+      setUser(user)
+      localStorage.setItem('token', token)
+      toast.success('Google login successful')
+      router.push(role === 'super_admin' ? '/dashboard' : '/account')
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { message?: string } } }
+        toast.error(axiosErr.response?.data?.message || 'Login failed')
+      } else {
+        toast.error('Unexpected error')
+      }
     }
   }
-}
 
 
   return (

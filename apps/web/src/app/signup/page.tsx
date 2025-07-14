@@ -2,29 +2,30 @@
 
 import { useState } from 'react'
 import { signupRequest } from '@/lib/api'
-import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !fullName) return toast.error('All fields are required.')
     setLoading(true)
     try {
-      await signupRequest({ email, full_name: fullName })
+      await signupRequest({ email, password, full_name: fullName })
       toast.success('OTP sent to your email')
+      localStorage.setItem('signup-payload', JSON.stringify({ email, password, full_name: fullName }))
       router.push(`/verify?email=${email}`)
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { message?: string } } }
-        toast.error(axiosError.response?.data?.message || 'Failed to send OTP')
+        const axiosErr = err as { response?: { data?: { error?: string } } }
+        toast.error(axiosErr.response?.data?.error || 'Signup failed')
       } else {
-        toast.error('Unknown error occurred')
+        toast.error('Unexpected error')
       }
     } finally {
       setLoading(false)
@@ -48,6 +49,14 @@ export default function SignupPage() {
           placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
+          className="w-full border border-gray-300 p-2 rounded"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
           className="w-full border border-gray-300 p-2 rounded"
         />

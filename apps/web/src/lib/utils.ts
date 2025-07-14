@@ -1,9 +1,11 @@
-export interface DecodedToken {
+export interface DecodedJwt {
+  id: string
+  email: string
+  role: 'super_admin' | 'venue_owner' | 'support' | 'user'
   exp: number
-  [key: string]: unknown
 }
 
-export function decodeJwt(token: string): DecodedToken | null {
+export function decodeJwt(token: string): DecodedJwt | null {
   try {
     const payload = token.split('.')[1]
     return JSON.parse(atob(payload))

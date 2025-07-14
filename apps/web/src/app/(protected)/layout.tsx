@@ -1,43 +1,34 @@
-// app/(protected)/layout.tsx
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { decodeJwt } from '@/lib/utils'
-import { toast } from 'sonner'
-
-interface DecodedToken { exp: number;[key: string]: unknown }
+import { useRouter } from 'next/navigation'
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const token = useAuthStore((s) => s.token)
-  const logout = useAuthStore((s) => s.logout)
+  const setToken = useAuthStore((s) => s.setToken)
+  const setUser = useAuthStore((s) => s.setUser)
+  const router = useRouter()
 
   useEffect(() => {
-    if (!token) {
-      router.replace('/login')
-      return
-    }
-
-    try {
-      const decoded: DecodedToken | null = decodeJwt(token)
-
-      if (!decoded || typeof decoded.exp !== 'number') {
-        throw new Error('Invalid token')
-      }
-
-      const exp = decoded.exp * 1000
-      if (Date.now() >= exp) {
-        toast.error('Session expired. Please login again.')
-        logout()
+    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token')
+    if (storedToken && !token) {
+      const decoded = decodeJwt(storedToken)
+      if (decoded && decoded.exp * 1000 > Date.now()) {
+        setToken(storedToken)
+        setUser({
+          id: decoded.id,
+          email: decoded.email,
+          role: decoded.role,
+        })
+      } else {
         router.replace('/login')
       }
-    } catch {
-      logout()
+    } else if (!storedToken) {
       router.replace('/login')
     }
-  }, [token, logout, router])
+  }, [token, setToken, setUser, router])
 
   return <>{children}</>
 }

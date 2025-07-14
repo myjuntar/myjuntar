@@ -9,13 +9,26 @@ export default function Form() {
   const [password, setPasswordValue] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
+  const [phoneNumber, setPhoneNumber] = useState('')
   const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
     const e = searchParams.get('email')
-    if (e) setEmail(e)
-    else {
+    if (e) {
+      setEmail(e)
+      const payload = localStorage.getItem('signup-payload')
+      if (payload) {
+        try {
+          const parsed = JSON.parse(payload)
+          if (parsed.phone_number) {
+            setPhoneNumber(parsed.phone_number)
+          }
+        } catch {
+          toast.error('Corrupted signup session')
+        }
+      }
+    } else {
       toast.error('Missing email. Please restart signup.')
       router.push('/signup')
     }
@@ -25,8 +38,9 @@ export default function Form() {
     e.preventDefault()
     setLoading(true)
     try {
-      await setPassword(email, password)
+      await setPassword(email, password, phoneNumber)
       toast.success('Password set successfully!')
+      localStorage.removeItem('signup-payload') // ✅ clean session
       router.push('/login')
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {

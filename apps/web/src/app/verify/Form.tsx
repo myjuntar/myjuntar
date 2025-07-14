@@ -37,6 +37,7 @@ export default function Form() {
       await verifySignupOtp(email, otp)
       toast.success('OTP verified!')
       router.push(`/set-password?email=${email}`)
+      
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosErr = err as { response?: { data?: { message?: string } } }
@@ -51,13 +52,18 @@ export default function Form() {
 
   const handleResend = async () => {
     try {
-      await signupRequest({ email, full_name: '' })
+      const stored = localStorage.getItem('signup-payload')
+      if (!stored) return toast.error('Signup session expired. Please start again.')
+
+      const payload = JSON.parse(stored)
+      await signupRequest(payload)
       toast.success('OTP resent to your email')
       setResendCooldown(60)
-    } catch {
+    } catch (err) {
       toast.error('Could not resend OTP')
     }
   }
+
 
   return (
     <>
