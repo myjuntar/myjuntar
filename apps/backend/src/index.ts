@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.routes';
 import protectedRoutes from './routes/protected.routes';
+import healthRoutes from './routes/health.routes'
 
 // Use CommonJS-compatible fetch (v2)
 const fetch = require('node-fetch');
@@ -26,6 +27,7 @@ app.use(rateLimit({
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use("/api/v1/protected", protectedRoutes);
+app.use("/api/health", healthRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3001;
