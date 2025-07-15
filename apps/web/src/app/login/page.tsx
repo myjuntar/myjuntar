@@ -183,6 +183,7 @@ const Login = () => {
               <GoogleLogin
                 shape="circle"
                 theme="filled_blue"
+                width="full-width"
                 onSuccess={async (response) => {
                   const idToken = response.credential;
 
