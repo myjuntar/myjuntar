@@ -10,8 +10,10 @@ import { Separator } from '@/components/ui/separator';
 import { Heart, Mail, User, Phone, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 import Link from 'next/link';
+import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
 
 const Signup = () => {
+  useGuestRedirect();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',

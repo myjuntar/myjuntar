@@ -12,10 +12,10 @@ import { Eye, EyeOff, Heart, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 import Link from 'next/link';
 import { decodeJwt } from '@/lib/utils';
-
-
+import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
 
 const Login = () => {
+  useGuestRedirect();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

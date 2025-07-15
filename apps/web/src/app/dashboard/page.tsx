@@ -8,24 +8,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { 
-  BarChart3, 
-  Users, 
-  Building, 
-  Calendar, 
-  Settings, 
+import {
+  BarChart3,
+  Users,
+  Building,
+  Calendar,
+  Settings,
   Shield,
-  AlertCircle 
+  AlertCircle
 } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 
 const Dashboard = () => {
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, hasHydrated, logout } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const router = useRouter();
 
   useEffect(() => {
+    if (!hasHydrated) return;
     const verifyAccess = async () => {
       if (!isAuthenticated || !user) {
         router.push('/login');
@@ -41,7 +42,7 @@ const Dashboard = () => {
       try {
         const response = await authService.checkProtectedRoute();
         setDashboardData(response);
-        
+
         toast({
           title: 'Welcome to Dashboard',
           description: `Access verified for ${user.role}`,
@@ -64,7 +65,7 @@ const Dashboard = () => {
     };
 
     verifyAccess();
-  }, [user, isAuthenticated, router, logout]);
+  }, [hasHydrated, user, isAuthenticated, router, logout]);
 
   if (isLoading) {
     return (
@@ -110,7 +111,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -212,7 +213,7 @@ const Dashboard = () => {
                   </Button>
                 </>
               )}
-              
+
               {user.role === 'super_admin' && (
                 <>
                   <Button variant="outline" className="w-full justify-start">

@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Heart, Mail, Lock } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
+import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
 
 const Verify = () => {
+  useGuestRedirect();
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

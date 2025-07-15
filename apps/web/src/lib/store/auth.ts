@@ -17,6 +17,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasHydrated: boolean;
 
   // Actions
   setUser: (user: User) => void;
@@ -25,6 +26,7 @@ interface AuthState {
   logout: () => void;
   setLoading: (loading: boolean) => void;
   clearAuth: () => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: !!Cookies.get('auth-token'),
       isLoading: false,
+      hasHydrated: false,
 
       setUser: (user) => set({ user }),
 
@@ -73,6 +76,8 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
       },
+
+      setHasHydrated: (value: boolean) => set({ hasHydrated: value }),
     }),
     {
       name: 'myjuntar-auth',
@@ -81,6 +86,11 @@ export const useAuthStore = create<AuthState>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => {
+        return (state) => {
+          state?.setHasHydrated(true); // ✅ call action method instead of set()
+        };
+      },
     }
   )
 );
