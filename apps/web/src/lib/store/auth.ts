@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       token: null,
-      isAuthenticated: false,
+      isAuthenticated: !!Cookies.get('auth-token'),
       isLoading: false,
 
       setUser: (user) => set({ user }),
@@ -48,7 +48,7 @@ export const useAuthStore = create<AuthState>()(
           user,
           token,
           isAuthenticated: true,
-          isLoading: false
+          isLoading: false,
         });
       },
 
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
-          isLoading: false
+          isLoading: false,
         });
       },
 
@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
-          isLoading: false
+          isLoading: false,
         });
       },
     }),

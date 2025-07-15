@@ -210,7 +210,7 @@ class AuthService {
 
   async checkProtectedRoute(): Promise<{ message: string; user: User }> {
     try {
-      const response = await api.get('/protected/dashboard');
+      const response = await api.get('/auth/protected/dashboard');
       return response.data;
     } catch (error: any) {
       throw error;
