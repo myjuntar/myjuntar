@@ -193,19 +193,9 @@ class AuthService {
     }
   }
 
-  async socialLogin(data: SocialLoginData): Promise<AuthResponse> {
-    try {
-      const response = await api.post('/auth/social-login', data);
-      return response.data;
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Social login failed';
-      toast({
-        title: 'Social Login Error',
-        description: message,
-        variant: 'destructive',
-      });
-      throw error;
-    }
+  async socialLogin(idToken: string): Promise<{ token: string }> {
+    const res = await api.post('/auth/social-login', { idToken });
+    return res.data;
   }
 
   async checkProtectedRoute(): Promise<{ message: string; user: User }> {
