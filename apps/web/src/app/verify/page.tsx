@@ -34,26 +34,6 @@ const Verify = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!email) {
-      router.push('/signup');
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          setCanResend(true);
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [email, router]);
-
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -115,7 +95,7 @@ const Verify = () => {
       await authService.signup({
         email,
         full_name: '',
-        password: 'temp',
+        password: 'temporarypassord',
         phone_number: ''
       });
       setCanResend(false);

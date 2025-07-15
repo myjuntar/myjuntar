@@ -229,6 +229,7 @@ const Login = () => {
                   variant: 'destructive',
                 })
               }
+              width="100%"
             />
 
             <div className="text-center text-sm">

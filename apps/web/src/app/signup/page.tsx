@@ -14,7 +14,7 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
-    password: '',
+    password: 'temporarypassord',
     phone_number: '',
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -43,7 +43,7 @@ const Signup = () => {
     }));
   };
 
- 
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-gold-light via-champagne to-blush p-4">
       <div className="w-full max-w-md">
@@ -108,32 +108,19 @@ const Signup = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number (Optional)</Label>
+                <Label htmlFor="phone">Phone Number</Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="phone"
                     type="tel"
+                    pattern="[0-9]{10}"
+                    title="Enter a 10-digit number"
                     placeholder="Enter your phone number"
                     value={formData.phone_number}
                     onChange={(e) => handleInputChange('phone_number', e.target.value)}
                     className="pl-10"
+                    required
                   />
                 </div>
               </div>

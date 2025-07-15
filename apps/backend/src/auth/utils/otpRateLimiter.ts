@@ -2,7 +2,7 @@ import { redis } from "../../config/redisClient";
 
 
 const COOLDOWN_SECONDS = 60;
-const MAX_DAILY_LIMIT = 3;
+const MAX_DAILY_LIMIT = 100;
 
 export const enforceOtpRateLimit = async (identifier: string, ip: string): Promise<void> => {
   const keyBase = `otp:limit:${identifier}`;
@@ -27,7 +27,7 @@ export const enforceOtpRateLimit = async (identifier: string, ip: string): Promi
   }
 
   const ipCount = parseInt((await redis.get(ipKey) as string | null) || '0');
-  if (ipCount >= 20) {
+  if (ipCount >= 500) {
     throw { message: 'Too many requests from this IP. Try later.' };
   }
 
