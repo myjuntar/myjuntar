@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Eye, EyeOff, Heart, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Heart, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 import Link from 'next/link';
 
@@ -56,6 +56,15 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-gold-light via-champagne to-blush p-4">
       <div className="w-full max-w-md">
+        <div className="mb-4">
+          <Link
+            href="/"
+            className="inline-flex items-center text-sm text-primary hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to website
+          </Link>
+        </div>
         <Card className="shadow-elegant">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
