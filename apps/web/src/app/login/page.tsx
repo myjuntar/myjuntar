@@ -13,7 +13,7 @@ import { toast } from '@/lib/hooks/use-toast';
 import Link from 'next/link';
 import { decodeJwt } from '@/lib/utils';
 import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
-import { GoogleLogin, useGoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   useGuestRedirect();
@@ -179,58 +179,60 @@ const Login = () => {
                 </span>
               </div>
             </div>
+            <div className="w-full">
+              <GoogleLogin
+                shape="circle"
+                theme="filled_blue"
+                onSuccess={async (response) => {
+                  const idToken = response.credential;
 
-            <GoogleLogin
-              onSuccess={async (response) => {
-                const idToken = response.credential;
+                  if (!idToken) {
+                    toast({
+                      title: 'Google Login Failed',
+                      description: 'Missing ID token from Google.',
+                      variant: 'destructive',
+                    });
+                    return;
+                  }
 
-                if (!idToken) {
+                  try {
+                    const { token } = await authService.socialLogin(idToken);
+
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    const user: User = {
+                      id: payload.id,
+                      email: payload.email,
+                      name: payload.name ?? '',
+                      role: payload.role as User['role'],
+                      email_verified: true,
+                    };
+
+                    login(user, token);
+
+                    const redirectPath =
+                      ['super_admin', 'venue_owner', 'customer_support'].includes(user.role)
+                        ? '/dashboard'
+                        : '/account';
+
+                    router.push(redirectPath);
+                  } catch (err) {
+                    toast({
+                      title: 'Social Login Failed',
+                      description: 'Invalid Google token or server error',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+
+                onError={() =>
                   toast({
-                    title: 'Google Login Failed',
-                    description: 'Missing ID token from Google.',
+                    title: 'Social Login Error',
+                    description: 'Google login failed.',
                     variant: 'destructive',
-                  });
-                  return;
+                  })
                 }
-
-                try {
-                  const { token } = await authService.socialLogin(idToken);
-
-                  const payload = JSON.parse(atob(token.split('.')[1]));
-                  const user: User = {
-                    id: payload.id,
-                    email: payload.email,
-                    name: payload.name ?? '',
-                    role: payload.role as User['role'],
-                    email_verified: true,
-                  };
-
-                  login(user, token);
-
-                  const redirectPath =
-                    ['super_admin', 'venue_owner', 'customer_support'].includes(user.role)
-                      ? '/dashboard'
-                      : '/account';
-
-                  router.push(redirectPath);
-                } catch (err) {
-                  toast({
-                    title: 'Social Login Failed',
-                    description: 'Invalid Google token or server error',
-                    variant: 'destructive',
-                  });
-                }
-              }}
-
-              onError={() =>
-                toast({
-                  title: 'Social Login Error',
-                  description: 'Google login failed.',
-                  variant: 'destructive',
-                })
-              }
-              width="100%"
-            />
+              />
+            </div>
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Don't have an account? </span>
