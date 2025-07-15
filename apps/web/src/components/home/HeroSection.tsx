@@ -16,27 +16,7 @@ export function HeroSection() {
     capacityRange: [50, 2000],
     amenities: [],
   });
-
   const [searchQuery, setSearchQuery] = useState('');
-  const [favoriteVenues, setFavoriteVenues] = useState<string[]>([]);
-
-  // Filter venues based on current filters
-  const filteredVenues = useMemo(() => {
-    return mockVenues.filter((venue) => {
-      if (filters.searchQuery && !venue.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) &&
-          !venue.location.toLowerCase().includes(filters.searchQuery.toLowerCase())) {
-        return false;
-      }
-      if (filters.city && venue.city !== filters.city) return false;
-      if (filters.area && venue.area !== filters.area) return false;
-      if (filters.venueType && venue.venueType !== filters.venueType) return false;
-      if (venue.price.min > filters.priceRange[1] || venue.price.max < filters.priceRange[0]) return false;
-      if (venue.capacity.min > filters.capacityRange[1] || venue.capacity.max < filters.capacityRange[0]) return false;
-      if (filters.amenities.length > 0 && !filters.amenities.every(amenity => venue.amenities.includes(amenity))) return false;
-      return true;
-    });
-  }, [filters]);
-
   const handleQuickSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setFilters(prev => ({
