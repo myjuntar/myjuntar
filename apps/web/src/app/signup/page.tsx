@@ -1,5 +1,7 @@
 "use client"
 import React, { useState } from 'react';
+import Link from 'next/link';
+import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
@@ -7,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Heart, Mail, User, Phone, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
+import { toast } from '@/lib/hooks/use-toast';
+
 const Signup = () => {
   useGuestRedirect();
   const [formData, setFormData] = useState({
@@ -27,10 +30,15 @@ const Signup = () => {
 
     try {
       await authService.signup(formData);
-      localStorage.setItem('signupEmail', formData.email);
+      Cookies.set('signupEmail', formData.email, { expires: 0.02 });
       router.push('/verify');
-    } catch (error) {
-      console.error('Signup error:', error);
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || 'Something went wrong!!';
+      toast({
+        title: 'Signup Failed',
+        description: msg,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }

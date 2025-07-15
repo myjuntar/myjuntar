@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Heart, Mail, Lock } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 import { useGuestRedirect } from '@/lib/hooks/use-guest-redirect';
+import Cookies from 'js-cookie';
 
 const Verify = () => {
   useGuestRedirect();
@@ -26,12 +27,26 @@ const Verify = () => {
 
   const [email, setEmail] = useState('');
   useEffect(() => {
-    const storedEmail = localStorage.getItem('signupEmail');
+    const storedEmail = Cookies.get('signupEmail');
     if (!storedEmail) {
       router.push('/signup');
     } else {
       setEmail(storedEmail);
     }
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          setCanResend(true);
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
@@ -73,7 +88,7 @@ const Verify = () => {
 
     try {
       const response = await authService.setPassword({ email, password });
-
+      Cookies.remove('signupEmail');
       // Since we have user data now, we can redirect
       toast({
         title: 'Success',
