@@ -1,5 +1,6 @@
-// lib/api/index.ts
 import axios from 'axios';
+import { useAuthStore } from '@/lib/store/auth';
+import Cookies from 'js-cookie';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api',
@@ -9,9 +10,8 @@ const api = axios.create({
   },
 });
 
-// Optional: add token interceptor
 api.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const token = useAuthStore.getState().token || Cookies.get('auth-token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -17,7 +17,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  
+
   // Actions
   setUser: (user: User) => void;
   setToken: (token: string) => void;
@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
 
       setUser: (user) => set({ user }),
-      
+
       setToken: (token) => {
         Cookies.set('auth-token', token, { expires: 7, secure: true, sameSite: 'strict' });
         set({ token });
@@ -44,21 +44,21 @@ export const useAuthStore = create<AuthState>()(
 
       login: (user, token) => {
         Cookies.set('auth-token', token, { expires: 7, secure: true, sameSite: 'strict' });
-        set({ 
-          user, 
-          token, 
+        set({
+          user,
+          token,
           isAuthenticated: true,
-          isLoading: false 
+          isLoading: false
         });
       },
 
       logout: () => {
         Cookies.remove('auth-token');
-        set({ 
-          user: null, 
-          token: null, 
+        set({
+          user: null,
+          token: null,
           isAuthenticated: false,
-          isLoading: false 
+          isLoading: false
         });
       },
 
@@ -66,19 +66,20 @@ export const useAuthStore = create<AuthState>()(
 
       clearAuth: () => {
         Cookies.remove('auth-token');
-        set({ 
-          user: null, 
-          token: null, 
+        set({
+          user: null,
+          token: null,
           isAuthenticated: false,
-          isLoading: false 
+          isLoading: false
         });
       },
     }),
     {
       name: 'myjuntar-auth',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated 
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

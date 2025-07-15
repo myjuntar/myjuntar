@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store/auth';
+import { useAuthStore, User } from '@/lib/store/auth';
 import { authService } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Eye, EyeOff, Heart, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { toast } from '@/lib/hooks/use-toast';
 import Link from 'next/link';
+import { decodeJwt } from '@/lib/utils';
 
 
 
@@ -29,15 +30,35 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await authService.login({ email, password });
-      login(response.user, response.access_token);
+      const { token, role } = await authService.login({ email, password });
 
-      // Redirect based on role
-      const redirectPath = response.user.role === 'super_admin' ||
-        response.user.role === 'venue_owner' ||
-        response.user.role === 'customer_support'
-        ? '/dashboard'
-        : '/account';
+      // ✅ Ensure role is correctly typed
+      const allowedRoles = ['user', 'super_admin', 'venue_owner', 'customer_support'] as const;
+      const userRole = allowedRoles.includes(role as any) ? (role as User['role']) : 'user';
+
+      // ✅ Decode JWT payload
+      const payloadBase64 = token.split('.')[1];
+      const decodedPayload = decodeJwt(token);
+
+      // ✅ Construct user object that matches Zustand store interface
+      const user: User = {
+        id: decodedPayload.id,
+        email: decodedPayload.email,
+        name: '', // you can later fetch name separately
+        role: userRole,
+        email_verified: true,
+      };
+
+      // ✅ Store token and user in Zustand
+      login(user, token);
+
+      // ✅ Redirect based on role
+      const redirectPath =
+        userRole === 'super_admin' ||
+          userRole === 'venue_owner' ||
+          userRole === 'customer_support'
+          ? '/dashboard'
+          : '/account';
 
       router.push(redirectPath);
 
@@ -45,13 +66,19 @@ const Login = () => {
         title: 'Welcome back!',
         description: 'You have been successfully logged in.',
       });
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.response?.data?.error || 'Login failed.';
+      toast({
+        title: 'Login Failed',
+        description: msg,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-gold-light via-champagne to-blush p-4">

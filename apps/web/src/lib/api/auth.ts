@@ -55,19 +55,9 @@ export interface AuthResponse {
 }
 
 class AuthService {
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    try {
-      const response = await api.post('/auth/login', credentials);
-      return response.data;
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Login failed';
-      toast({
-        title: 'Login Error',
-        description: message,
-        variant: 'destructive',
-      });
-      throw error;
-    }
+  async login(credentials: LoginCredentials): Promise<{ token: string; role: string }> {
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
   }
 
   async signup(data: SignupData): Promise<{ message: string }> {
