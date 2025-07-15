@@ -1,150 +1,203 @@
-'use client'
+"use client";
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store/auth';
+import { authService } from '@/lib/api/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Eye, EyeOff, Heart, Mail, Lock } from 'lucide-react';
+import { toast } from '@/lib/hooks/use-toast';
+import Link from 'next/link';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { login } from '@/lib/api'
-import { toast } from 'sonner'
-import { useAuthStore } from '@/store/auth'
-import { CredentialResponse, GoogleLogin } from '@react-oauth/google'
-import { socialLogin } from '@/lib/api'
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(true)
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
 
-  const setToken = useAuthStore((s) => s.setToken)
-  const setUser = useAuthStore((s) => s.setUser)
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const { login, setLoading } = useAuthStore();
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setLoading(true);
+
     try {
-      const res = await login(email, password)
-      const { token, role } = res.data
+      const response = await authService.login({ email, password });
+      login(response.user, response.access_token);
 
-      const user = {
-        email,
-        role,
-        id: '',        // optional — decode from JWT if needed
-        full_name: '', // optional
-      }
+      // Redirect based on role
+      const redirectPath = response.user.role === 'super_admin' ||
+        response.user.role === 'venue_owner' ||
+        response.user.role === 'customer_support'
+        ? '/dashboard'
+        : '/account';
 
-      setToken(token)
-      setUser(user)
-      if (remember) {
-        localStorage.setItem('token', token)
-      } else {
-        sessionStorage.setItem('token', token)
-      }
+      router.push(redirectPath);
 
-      toast.success('Login successful')
-      router.push(role === 'super_admin' ? '/dashboard' : '/account')
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { message?: string } } }
-        toast.error(axiosError.response?.data?.message || 'Login failed')
-      } else {
-        toast.error('Unexpected error')
-      }
+      toast({
+        title: 'Welcome back!',
+        description: 'You have been successfully logged in.',
+      });
+    } catch (error) {
+      console.error('Login error:', error);
     } finally {
-      setLoading(false)
+      setIsLoading(false);
+      setLoading(false);
     }
-  }
-
-  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
-    const idToken = credentialResponse.credential
-    if (!idToken) return toast.error('Login failed')
-
-    try {
-      const res = await socialLogin(idToken)
-      const { token, role } = res.data
-
-      const user = {
-        email: '',     // you can decode from token if needed
-        role,
-        id: '',
-        full_name: '',
-      }
-
-      setToken(token)
-      setUser(user)
-      localStorage.setItem('token', token)
-      toast.success('Google login successful')
-      router.push(role === 'super_admin' ? '/dashboard' : '/account')
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { message?: string } } }
-        toast.error(axiosErr.response?.data?.message || 'Login failed')
-      } else {
-        toast.error('Unexpected error')
-      }
-    }
-  }
-
+  };
 
   return (
-    <div className="max-w-md mx-auto p-6 mt-10 border rounded shadow-sm bg-white">
-      <h1 className="text-2xl font-bold mb-6 text-center">Login to My Juntar</h1>
-      <form onSubmit={handleLogin} className="space-y-4">
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full border border-gray-300 p-2 rounded"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full border border-gray-300 p-2 rounded"
-        />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-gold-light via-champagne to-blush p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-elegant">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-rose-gold to-primary">
+                <Heart className="h-7 w-7 text-white" />
+              </div>
+            </div>
+            <div>
+              <CardTitle className="text-2xl bg-gradient-to-r from-rose-gold to-primary bg-clip-text text-transparent">
+                Welcome Back
+              </CardTitle>
+              <CardDescription>
+                Sign in to your MY JUNTAR account
+              </CardDescription>
+            </div>
+          </CardHeader>
 
-        <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={() => setRemember(!remember)}
-              className="accent-blue-600"
-            />
-            Remember me
-          </label>
-          <a href="/forgot-password" className="text-blue-600 hover:underline">
-            Forgot password?
-          </a>
-        </div>
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition"
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
 
-      <div className="text-center my-4 text-gray-400">OR</div>
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
-      <div className="text-center">
-        <GoogleLogin
-          onSuccess={handleGoogleLogin}
-          onError={() => toast.error('Google login failed')}
-        />
+              <Button
+                type="submit"
+                variant="elegant"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={async () => {
+                try {
+                  // This would integrate with Google OAuth
+                  const response = await authService.socialLogin({
+                    provider: 'google',
+                    token: 'google_oauth_token_here'
+                  });
+                  login(response.user, response.access_token);
+
+                  const redirectPath = response.user.role === 'super_admin' ||
+                    response.user.role === 'venue_owner' ||
+                    response.user.role === 'customer_support'
+                    ? '/dashboard'
+                    : '/account';
+                  router.push(redirectPath);
+                } catch (error) {
+                  console.error('Google login error:', error);
+                }
+              }}
+            >
+              <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              Continue with Google
+            </Button>
+
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link href="/signup" className="text-primary hover:underline font-medium">
+                Sign up
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-
-      <p className="text-sm text-center mt-6">
-        Don’t have an account?{' '}
-        <a href="/signup" className="text-blue-600 hover:underline">
-          Sign up
-        </a>
-      </p>
     </div>
-  )
-}
+  );
+};
+export default Login;

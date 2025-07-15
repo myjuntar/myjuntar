@@ -1,15 +1,7 @@
-export interface DecodedJwt {
-  id: string
-  email: string
-  role: 'super_admin' | 'venue_owner' | 'support' | 'user'
-  exp: number
-}
+// lib/utils.ts
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export function decodeJwt(token: string): DecodedJwt | null {
-  try {
-    const payload = token.split('.')[1]
-    return JSON.parse(atob(payload))
-  } catch {
-    return null
-  }
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
